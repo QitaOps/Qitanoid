@@ -1,0 +1,33 @@
+image:
+  tag: local
+
+ui:
+  enabled: true
+  replicaCount: 1
+  image:
+    tag: local
+
+service:
+  type: ClusterIP
+  nodePort: null
+
+persistence:
+  enabled: false
+
+video:
+  storage:
+    type: filesystem
+
+ingress:
+  enabled: false
+
+hub:
+  replicaCount: 1
+  orchestrator: kubernetes
+  bakedRuntime: false
+  browserMemory: 2Gi
+  browserCPUs: "0.5"
+  browserSHMSize: 1Gi
+
+config:
+  file: browsers-docker-desktop-arm64.json

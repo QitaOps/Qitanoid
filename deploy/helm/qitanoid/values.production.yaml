@@ -1,0 +1,89 @@
+# ============================================================
+#  Qitanoid — Production values
+#  Usage:
+#    helm install qitanoid ./deploy/helm/qitanoid \
+#      -n qitanoid --create-namespace \
+#      -f deploy/helm/qitanoid/values.production.yaml
+# ============================================================
+
+image:
+  tag: "latest"
+
+ui:
+  image:
+    tag: "latest"
+
+# ── Hub ─────────────────────────────────────────────────────
+hub:
+  replicaCount: 1
+
+  # Public URL of the dashboard (same as ingress host below)
+  dashboardUrl: "https://qitanoid.YOUR_DOMAIN.com"
+
+  # Admin token — set any strong secret string
+  adminToken: "CHANGE_ME_STRONG_TOKEN"
+
+  # Resources for browser pods spun up per session
+  browserMemory: 4Gi
+  browserCPUs: "2"
+  browserSHMSize: 2Gi
+
+  # Session idle timeout — kill browser pods after this much inactivity
+  sessionIdleTimeout: 30m
+
+  # Redis — leave empty to use bundled Redis below
+  redis:
+    addr: ""
+    password: ""
+    db: 0
+    prefix: qitanoid
+    connectTimeout: 30s
+
+# ── Redis (bundled) ─────────────────────────────────────────
+# Keeps sessions alive across hub restarts.
+# Set enabled: false if you use external Redis and set hub.redis.addr above.
+redis:
+  enabled: true
+
+# ── Ingress ─────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx          # change to your ingress class: nginx / traefik / etc.
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"   # remove if no cert-manager
+  host: "qitanoid.YOUR_DOMAIN.com"
+  tls:
+    - secretName: qitanoid-tls
+      hosts:
+        - qitanoid.YOUR_DOMAIN.com
+
+# ── Persistence (PVC) ───────────────────────────────────────
+# Required for video recordings. Set storageClassName to your storage class.
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce   # use ReadWriteMany if hub.replicaCount > 1
+  size: 50Gi
+  storageClassName: ""        # e.g. "gp2", "standard", "longhorn"
+
+# ── Video storage ───────────────────────────────────────────
+video:
+  storage:
+    type: filesystem          # or "s3" — see s3 block below
+    s3:
+      endpoint: ""
+      bucket: ""
+      prefix: videos
+      useSSL: true
+      autoCreateBucket: false
+      deleteLocalAfterUpload: true
+      accessKey: ""
+      secretKey: ""
+      existingSecret: ""
+
+# ── Session pods ────────────────────────────────────────────
+session:
+  podStartTimeout: 2m
+  terminationGraceSeconds: 30
+  nodeSelector: ""
+  podLabels: ""
+  podAnnotations: ""

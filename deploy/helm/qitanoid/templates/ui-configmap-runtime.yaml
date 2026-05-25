@@ -1,0 +1,15 @@
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qitanoid.uiServiceName" . }}-runtime
+  labels:
+    {{- include "qitanoid.labels" . | nindent 4 }}
+data:
+  config.js: |
+    window.__QITANOID_CONFIG__ = {
+      apiBaseUrl: {{ .Values.ui.runtimeConfig.apiBaseUrl | quote }},
+      wsBaseUrl: {{ .Values.ui.runtimeConfig.wsBaseUrl | quote }},
+      adminToken: {{ .Values.ui.runtimeConfig.adminToken | quote }}
+    };
+{{- end }}

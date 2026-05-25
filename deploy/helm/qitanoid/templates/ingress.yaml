@@ -1,0 +1,31 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "qitanoid.fullname" . }}
+  labels:
+    {{- include "qitanoid.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ if .Values.ui.enabled }}{{ include "qitanoid.uiServiceName" . }}{{ else }}{{ include "qitanoid.hubServiceName" . }}{{ end }}
+                port:
+                  number: {{ if .Values.ui.enabled }}{{ .Values.ui.service.port }}{{ else }}{{ .Values.service.port }}{{ end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

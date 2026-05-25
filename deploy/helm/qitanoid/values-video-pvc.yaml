@@ -1,0 +1,9 @@
+video:
+  storage:
+    type: filesystem
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteMany
+  size: 50Gi
+  storageClassName: ""

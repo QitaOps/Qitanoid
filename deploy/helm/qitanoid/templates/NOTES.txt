@@ -1,0 +1,29 @@
+Qitanoid Hub has been deployed.
+
+{{- if .Values.ui.enabled }}
+Dashboard access:
+{{- if eq .Values.ui.service.type "NodePort" }}
+  http://localhost:{{ .Values.ui.service.nodePort }}
+{{- else if eq .Values.ui.service.type "ClusterIP" }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "qitanoid.uiServiceName" . }} 8080:{{ .Values.ui.service.port }}
+{{- else if eq .Values.service.type "ClusterIP" }}
+  kubectl -n {{ .Release.Namespace }} get svc {{ include "qitanoid.uiServiceName" . }}
+{{- else }}
+Check the service status with:
+  kubectl -n {{ .Release.Namespace }} get svc {{ include "qitanoid.uiServiceName" . }}
+{{- end }}
+{{- else }}
+Hub access:
+{{- if eq .Values.service.type "NodePort" }}
+  http://localhost:{{ .Values.service.nodePort }}
+{{- else if eq .Values.service.type "ClusterIP" }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "qitanoid.hubServiceName" . }} 4444:{{ .Values.service.port }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} get svc {{ include "qitanoid.hubServiceName" . }}
+{{- end }}
+{{- end }}
+
+Useful commands:
+  kubectl -n {{ .Release.Namespace }} get pods
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "qitanoid.fullname" . }}
+  helm -n {{ .Release.Namespace }} test {{ .Release.Name }}

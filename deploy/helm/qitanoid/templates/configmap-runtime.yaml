@@ -1,0 +1,13 @@
+{{- if and .Values.session.runtimeScripts.create (not .Values.hub.bakedRuntime) (not .Values.session.runtimeScripts.existingConfigMap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qitanoid.runtimeConfigMapName" . }}
+  labels:
+    {{- include "qitanoid.labels" . | nindent 4 }}
+data:
+  entrypoint.sh: |
+{{- .Files.Get "files/entrypoint.sh" | nindent 4 }}
+  record.sh: |
+{{- .Files.Get "files/record.sh" | nindent 4 }}
+{{- end }}

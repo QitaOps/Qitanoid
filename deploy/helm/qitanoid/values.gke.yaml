@@ -1,0 +1,88 @@
+# ============================================================
+#  Qitanoid — GKE (Google Kubernetes Engine) values
+#  Cluster: gke_me-sb-dgcp-dpoc-devops-pr_me-west1_gke-test-cluster
+#
+#  Usage:
+#    helm upgrade --install qitanoid ./deploy/helm/qitanoid \
+#      -n qitanoid --create-namespace \
+#      -f deploy/helm/qitanoid/values.gke.yaml \
+#      --wait --timeout 5m
+# ============================================================
+
+image:
+  repository: aidevtech/qitanoid-hub
+  tag: "latest"
+  pullPolicy: Always
+
+ui:
+  enabled: true
+  image:
+    repository: aidevtech/qitanoid-dashboard
+    tag: "latest"
+    pullPolicy: Always
+  runtimeConfig:
+    apiBaseUrl: "http://HUB_EXTERNAL_IP"
+    wsBaseUrl: "ws://HUB_EXTERNAL_IP"
+    adminToken: "YOUR_ADMIN_TOKEN"
+  service:
+    type: LoadBalancer
+    port: 80
+hub:
+  replicaCount: 1
+  orchestrator: kubernetes
+
+  # Will be updated after first deploy when external IP is assigned
+  dashboardUrl: "http://UI_EXTERNAL_IP"
+
+  adminToken: "YOUR_ADMIN_TOKEN"
+
+  browserMemory: 1Gi
+  browserCPUs: "0.25"
+  browserSHMSize: 256Mi
+  sessionIdleTimeout: 10m
+
+  redis:
+    addr: ""
+    password: ""
+    db: 0
+    prefix: qitanoid
+    connectTimeout: 30s
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# ── Redis (bundled) — keeps sessions alive on hub restart ───
+redis:
+  enabled: true
+
+# ── Service — GCP LoadBalancer (external IP) ────────────────
+service:
+  type: LoadBalancer
+  port: 80
+
+# ── Ingress — disabled (using LoadBalancer instead) ─────────
+ingress:
+  enabled: false
+
+# ── Persistence — disabled to avoid RWO node affinity issues ─
+# Enable and set storageClassName to a RWX class when video recording is needed
+persistence:
+  enabled: false
+
+# ── Video storage ────────────────────────────────────────────
+video:
+  storage:
+    type: filesystem
+
+# ── Session pods ─────────────────────────────────────────────
+session:
+  podStartTimeout: 5m
+  terminationGraceSeconds: 30
+  nodeSelector: ""
+  podLabels: ""
+  podAnnotations: ""

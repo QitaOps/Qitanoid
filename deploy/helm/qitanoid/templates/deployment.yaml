@@ -1,0 +1,205 @@
+{{- if and (eq .Values.video.storage.type "s3") (not .Values.persistence.enabled) -}}
+{{- fail "video.storage.type=s3 requires persistence.enabled=true so runtime pods can stage recordings before upload" -}}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "qitanoid.fullname" . }}
+  labels:
+    {{- include "qitanoid.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.hub.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "qitanoid.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "qitanoid.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/browser-config: {{ include (print $.Template.BasePath "/configmap-browser.yaml") . | sha256sum }}
+        {{- if and .Values.session.runtimeScripts.create (not .Values.hub.bakedRuntime) (not .Values.session.runtimeScripts.existingConfigMap) }}
+        checksum/runtime-config: {{ include (print $.Template.BasePath "/configmap-runtime.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "qitanoid.serviceAccountName" . }}
+      initContainers:
+        - name: bootstrap-config
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              mkdir -p /data/config /data/videos
+              chmod 0777 /data/videos
+              if [ ! -f /data/config/browsers.json ]; then
+                cp /bootstrap/browsers.json /data/config/browsers.json
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: browser-bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+      containers:
+        - name: hub
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4444
+          env:
+            - name: PORT
+              value: "4444"
+            - name: QITANOID_ORCHESTRATOR
+              value: {{ .Values.hub.orchestrator | quote }}
+            - name: QITANOID_CONFIG_PATH
+              value: /data/config/browsers.json
+            - name: QITANOID_VIDEO_DIR
+              value: /data/videos
+            - name: QITANOID_VIDEO_STORAGE_BACKEND
+              value: {{ .Values.video.storage.type | quote }}
+            - name: QITANOID_DASHBOARD_URL
+              value: {{ .Values.hub.dashboardUrl | quote }}
+            {{- if eq .Values.video.storage.type "s3" }}
+            - name: QITANOID_VIDEO_S3_ENDPOINT
+              value: {{ .Values.video.storage.s3.endpoint | quote }}
+            - name: QITANOID_VIDEO_S3_BUCKET
+              value: {{ .Values.video.storage.s3.bucket | quote }}
+            - name: QITANOID_VIDEO_S3_PREFIX
+              value: {{ .Values.video.storage.s3.prefix | quote }}
+            - name: QITANOID_VIDEO_S3_USE_SSL
+              value: {{ ternary "true" "false" .Values.video.storage.s3.useSSL | quote }}
+            - name: QITANOID_VIDEO_S3_AUTO_CREATE_BUCKET
+              value: {{ ternary "true" "false" .Values.video.storage.s3.autoCreateBucket | quote }}
+            - name: QITANOID_VIDEO_S3_DELETE_LOCAL_AFTER_UPLOAD
+              value: {{ ternary "true" "false" .Values.video.storage.s3.deleteLocalAfterUpload | quote }}
+            {{- if or .Values.video.storage.s3.existingSecret (and .Values.video.storage.s3.accessKey .Values.video.storage.s3.secretKey) }}
+            - name: QITANOID_VIDEO_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "qitanoid.videoS3SecretName" . }}
+                  key: accessKey
+            - name: QITANOID_VIDEO_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "qitanoid.videoS3SecretName" . }}
+                  key: secretKey
+            {{- end }}
+            {{- end }}
+            - name: QITANOID_BAKED_RUNTIME
+              value: {{ ternary "true" "false" .Values.hub.bakedRuntime | quote }}
+            - name: QITANOID_BROWSER_MEMORY
+              value: {{ .Values.hub.browserMemory | quote }}
+            - name: QITANOID_BROWSER_CPUS
+              value: {{ .Values.hub.browserCPUs | quote }}
+            - name: QITANOID_BROWSER_SHM_SIZE
+              value: {{ .Values.hub.browserSHMSize | quote }}
+            - name: QITANOID_SESSION_IDLE_TIMEOUT
+              value: {{ .Values.hub.sessionIdleTimeout | quote }}
+            {{- if or .Values.hub.redis.addr .Values.redis.enabled }}
+            - name: QITANOID_REDIS_ADDR
+              value: {{ default (printf "%s:%d" (include "qitanoid.redisServiceName" .) (int .Values.redis.service.port)) .Values.hub.redis.addr | quote }}
+            - name: QITANOID_REDIS_DB
+              value: {{ .Values.hub.redis.db | quote }}
+            - name: QITANOID_REDIS_PREFIX
+              value: {{ .Values.hub.redis.prefix | quote }}
+            - name: QITANOID_REDIS_CONNECT_TIMEOUT
+              value: {{ .Values.hub.redis.connectTimeout | quote }}
+            {{- if .Values.hub.redis.password }}
+            - name: QITANOID_REDIS_PASSWORD
+              value: {{ .Values.hub.redis.password | quote }}
+            {{- end }}
+            {{- end }}
+            - name: QITANOID_SESSION_SERVICE_ACCOUNT
+              value: {{ include "qitanoid.sessionServiceAccountName" . | quote }}
+            - name: QITANOID_SESSION_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: QITANOID_SESSION_TERMINATION_GRACE_SECONDS
+              value: {{ .Values.session.terminationGraceSeconds | quote }}
+            - name: QITANOID_SESSION_POD_START_TIMEOUT
+              value: {{ .Values.session.podStartTimeout | quote }}
+            {{- if .Values.persistence.enabled }}
+            - name: QITANOID_SESSION_VIDEO_PVC
+              value: {{ printf "%s-data" (include "qitanoid.fullname" .) | quote }}
+            {{- end }}
+            {{- if not .Values.hub.bakedRuntime }}
+            - name: QITANOID_SESSION_RUNTIME_CONFIGMAP
+              value: {{ include "qitanoid.runtimeConfigMapName" . | quote }}
+            {{- end }}
+            {{- if .Values.session.nodeSelector }}
+            - name: QITANOID_SESSION_NODE_SELECTOR
+              value: {{ .Values.session.nodeSelector | quote }}
+            {{- end }}
+            {{- if .Values.session.kvmNodeSelector }}
+            - name: QITANOID_SESSION_KVM_NODE_SELECTOR
+              value: {{ .Values.session.kvmNodeSelector | quote }}
+            {{- end }}
+            {{- if .Values.session.podLabels }}
+            - name: QITANOID_SESSION_POD_LABELS
+              value: {{ .Values.session.podLabels | quote }}
+            {{- end }}
+            {{- if .Values.session.podAnnotations }}
+            - name: QITANOID_SESSION_POD_ANNOTATIONS
+              value: {{ .Values.session.podAnnotations | quote }}
+            {{- end }}
+            {{- if .Values.hub.adminToken }}
+            - name: QITANOID_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "qitanoid.fullname" . }}-admin
+                  key: token
+            {{- end }}
+            {{- range .Values.hub.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.hub.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "qitanoid.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: browser-bootstrap
+          configMap:
+            name: {{ include "qitanoid.fullname" . }}-browser-bootstrap
+      {{- with .Values.hub.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hub.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hub.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,60 @@
+image:
+  tag: latest
+
+ui:
+  enabled: true
+  replicaCount: 2
+  service:
+    type: ClusterIP
+
+hub:
+  replicaCount: 2
+  orchestrator: kubernetes
+  allowedOrigins: "https://qitanoid.example.com"
+  dashboardUrl: "https://qitanoid.example.com"
+  browserMemory: 4Gi
+  browserCPUs: "1"
+  browserSHMSize: 2Gi
+  redis:
+    addr: ""
+    password: ""
+    db: 0
+    prefix: qitanoid
+    connectTimeout: 45s
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  className: nginx
+  host: qitanoid.example.com
+  path: /
+  tls: []
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteMany
+  size: 50Gi
+  storageClassName: ""
+
+video:
+  storage:
+    type: filesystem
+    s3:
+      prefix: videos
+      useSSL: true
+      autoCreateBucket: false
+      deleteLocalAfterUpload: true
+
+redis:
+  enabled: true
+  service:
+    port: 6379

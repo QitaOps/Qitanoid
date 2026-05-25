@@ -1,0 +1,18 @@
+video:
+  storage:
+    type: s3
+    s3:
+      endpoint: qitanoid-minio.qitanoid.svc.cluster.local:9000
+      bucket: qitanoid-videos
+      prefix: recordings
+      useSSL: false
+      autoCreateBucket: true
+      deleteLocalAfterUpload: true
+      accessKey: minioadmin
+      secretKey: minioadmin
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  storageClassName: ""

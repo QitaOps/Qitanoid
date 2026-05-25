@@ -1,0 +1,56 @@
+# Copy this file to values.user.yaml and fill your real values.
+
+image:
+  tag: "latest"
+
+ui:
+  image:
+    tag: "latest"
+
+hub:
+  # Set your public UI URL.
+  dashboardUrl: "https://qitanoid.example.com"
+  # Optional admin token for protected endpoints.
+  adminToken: ""
+  # If using external Redis, set addr/password here and disable bundled redis below.
+  redis:
+    addr: ""
+    password: ""
+    db: 0
+    prefix: qitanoid
+
+ingress:
+  enabled: true
+  className: nginx
+  host: "qitanoid.example.com"
+  tls:
+    - secretName: qitanoid-tls
+      hosts:
+        - qitanoid.example.com
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteMany
+  size: 50Gi
+  # Set your storage class name.
+  storageClassName: ""
+
+video:
+  storage:
+    # Use 'filesystem' for PVC mode or 's3' for S3-compatible mode.
+    type: filesystem
+    s3:
+      endpoint: ""
+      bucket: ""
+      prefix: videos
+      useSSL: true
+      autoCreateBucket: false
+      deleteLocalAfterUpload: true
+      accessKey: ""
+      secretKey: ""
+      existingSecret: ""
+
+redis:
+  # Keep true for bundled Redis.
+  # Set false if using external Redis via hub.redis.addr.
+  enabled: true
