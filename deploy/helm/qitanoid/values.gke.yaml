@@ -21,9 +21,9 @@ ui:
     tag: "latest"
     pullPolicy: Always
   runtimeConfig:
-    apiBaseUrl: "http://HUB_EXTERNAL_IP"
-    wsBaseUrl: "ws://HUB_EXTERNAL_IP"
-    adminToken: "YOUR_ADMIN_TOKEN"
+    apiBaseUrl: "http://<HUB_EXTERNAL_IP>"
+    wsBaseUrl: "ws://<HUB_EXTERNAL_IP>"
+    adminToken: "<YOUR_ADMIN_TOKEN>"
   service:
     type: LoadBalancer
     port: 80
@@ -31,10 +31,10 @@ hub:
   replicaCount: 1
   orchestrator: kubernetes
 
-  # Will be updated after first deploy when external IP is assigned
-  dashboardUrl: "http://UI_EXTERNAL_IP"
+  # Run: kubectl get svc -n qitanoid qitanoid-ui  to get the external IP
+  dashboardUrl: "http://<UI_EXTERNAL_IP>"
 
-  adminToken: "YOUR_ADMIN_TOKEN"
+  adminToken: "<YOUR_ADMIN_TOKEN>"
 
   browserMemory: 1Gi
   browserCPUs: "0.25"
